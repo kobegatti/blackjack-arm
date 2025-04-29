@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -32,7 +33,7 @@ void testInitDeck(uint8_t* deck)
 		if (deck[i] != i) { ret = 0; }
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testShuffleDeck(uint8_t* deck)
@@ -46,7 +47,7 @@ void testShuffleDeck(uint8_t* deck)
 		if (deck[i] < 0 || deck[i] >= DECK_SIZE) { ret = 0; }
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testResetDeckIndex(uint8_t* deckIndex)
@@ -57,7 +58,7 @@ void testResetDeckIndex(uint8_t* deckIndex)
 
 	ret = (*deckIndex == 0);
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testGetRandomNumber(uint8_t upperLimit)
@@ -70,7 +71,7 @@ void testGetRandomNumber(uint8_t upperLimit)
 		ret = 0;
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testDrawCard(uint8_t* deck, uint8_t* deckIndex)
@@ -91,16 +92,13 @@ void testDrawCard(uint8_t* deck, uint8_t* deckIndex)
 		ret2 = 0;
 	}
 
-	printf("%s passed: %s\n", __func__, ret1 & ret2 ? "true" : "false");
+	assert(ret1);
+	assert(ret2);
 }
 
 void testPrintHand(uint8_t* deck, uint8_t numCards)
 {
-	uint8_t ret = 1;
-
 	printHand(deck, numCards);
-
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
 }
 
 void testCalcTotal(uint8_t* hand, uint8_t count, uint8_t expected)
@@ -110,7 +108,7 @@ void testCalcTotal(uint8_t* hand, uint8_t count, uint8_t expected)
 
 	if (actualTotal != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testGetCardValue(char c, int expected)
@@ -120,7 +118,7 @@ void testGetCardValue(char c, int expected)
 
 	if (actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testSubChips(long long* chips, int val, long long expected)
@@ -130,7 +128,7 @@ void testSubChips(long long* chips, int val, long long expected)
 
 	if (*actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testAddChips(long long* chips, int val, long long expected)
@@ -140,7 +138,7 @@ void testAddChips(long long* chips, int val, long long expected)
 
 	if (*actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 int main()

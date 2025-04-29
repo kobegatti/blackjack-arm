@@ -69,8 +69,65 @@
 .extern calcTotal
 .extern getCardValue
 
-.global _start
 
+// Input: None
+// Output: None
+print_chips:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	LDR X3, =chips_str_len
+	PRINT_STR chips_str, X3
+
+	LDR X10, =chips // X10 = address of chips variable
+	LDR X10, [X10] // X10 = value of chips variable 
+	INT_TO_STR X10, buffer, buffer_len // buffer = str(X10)
+	MOV X3, X0 // X0 = num bytes returned
+	PRINT_FROM_REG X1, X3 // X1 = address at start of str, X3 = num bytes
+
+	LDP FP, LR, [SP], #16
+	RET
+
+// Input: None
+// Output: X0=bet
+get_bet:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	get_bet_loop:
+		LDR X3, =placeBet_len
+		PRINT_STR placeBet, X3 // print place bet prompt
+
+		GET_STR buffer, buffer_len // user input into buffer 
+		STR_TO_INT buffer // int result in X0
+
+		CMP W0, BET_MIN 
+		BLE get_bet_loop // retry if bet <= 0
+		CMP W0, BET_MAX
+		BGT get_bet_loop // retry if bet > 500
+
+	LDP FP, LR, [SP], #16
+	RET
+
+// Input: X28=bet
+// Output: None
+print_bet:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	LDR X3, =betPlaced_len
+	PRINT_STR betPlaced, X3 // print bet placed text 	
+
+	INT_TO_STR X28, buffer, buffer_len // bet int to str
+	MOV X3, X0 // num bytes returned in X0
+	PRINT_STR buffer, X3  // print bet placed
+	ENDL
+
+	LDP FP, LR, [SP], #16
+	RET
+
+
+.global _start
 _start:
 		LDR X3, =title_len
 		PRINT_STR title, X3 
@@ -99,41 +156,11 @@ _start:
 			BNE deal // if not 'd', try again... 
 			ENDL
 
+			BL print_chips
+			BL get_bet
 
-		printchips:
-			LDR X3, =chips_str_len
-			PRINT_STR chips_str, X3
-
-			LDR X10, =chips // X10 = address of chips
-			LDR X10, [X10] // X10 = value at X10
-			INT_TO_STR X10, buffer, buffer_len // buffer = str(X10)
-			MOV X3, X0 // X0 = num chars
-			PRINT_FROM_REG X1, X3 // X1 = address at start of str
-
-
-		getBet:
-			LDR X3, =placeBet_len
-			PRINT_STR placeBet, X3 // print place bet prompt
-
-			GET_STR buffer, buffer_len // user input into buffer 
-			STR_TO_INT buffer // int result in X0
-
-			CMP W0, BET_MIN 
-			BLE getBet // retry if bet <= 0
-			CMP W0, BET_MAX
-			BGT getBet // retry if bet > 500
-		
-
-		printBet:
 			MOV X28, X0 // move bet result to X28
-			LDR X3, =betPlaced_len
-			PRINT_STR betPlaced, X3 // print bet placed text 	
-
-			INT_TO_STR X28, buffer, buffer_len // bet int to str
-			MOV X3, X0 // num bytes returned in X0
-			PRINT_STR buffer, X3  // print bet placed
-			ENDL
-						
+			BL print_bet
 
 		initialDeal:	
 			LDR X0, =deck	
