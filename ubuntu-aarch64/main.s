@@ -12,6 +12,7 @@
 
 	.equ BET_MIN, 0
 	.equ BET_MAX, 500
+	.equ DEALER_MAX, 17
 	.equ BLACKJACK, 21
 	
 	betPlaced: .asciz "Bet placed: "
@@ -269,6 +270,39 @@ player_play:
 		LDP FP, LR, [SP], #16
 		RET
 
+// Input: None
+// Output: None 
+dealer_play:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	ENDL
+	PRINT_STR dealersTurn, dealers_turn_len
+	ENDL
+
+	dealer_play_loop:
+		MOV X0, X22 // X0 = address of dealerHand
+		LDRB W24, [X23] 
+		MOV X1, X24 // X1 = dealerCardCount
+		BL calcTotal // X0 = calcTotal(X0, X1) 
+
+		// if total >= dealer max, then compare hands
+		CMP X0, DEALER_MAX 
+		BGE dealer_play_exit 
+
+		LDR X0, =deck
+		LDR X1, =deckIndex
+		BL drawCard // W0 = drawCard(X0, X1)
+
+		STRB W0, [X22, X24] // dealerHand[dealerCardCount] = W0 
+		ADD W24, W24, #1
+		STRB W24, [X23] // dealerCardCount++
+
+		B dealer_play_loop
+	
+	dealer_play_exit:
+		LDP FP, LR, [SP], #16
+		RET
 
 .global _start
 _start:
@@ -326,9 +360,9 @@ _start:
 			ENDL
 
 			// Check if player got blackjack initially
-			MOV X0, X20 // X0 = address of playerHand
+			MOV X0, X20 
 			LDRB W24, [X21]
-			MOV X1, X24 // X1 = playerCardCount
+			MOV X1, X24
 			BL calcTotal // X0 = calcTotal(X0, X1)
 			CMP X0, BLACKJACK 
 			BEQ playerWin
@@ -339,31 +373,8 @@ _start:
 			BEQ playerWin
 			BGT busted
 
-		dealerPlay:
-			ENDL
-			PRINT_STR dealersTurn, dealers_turn_len
-			ENDL
-		
-			dealerLoop:
-				MOV X0, X22 // X0 = address of dealerHand
-				LDRB W24, [X23] 
-				MOV X1, X24 // X1 = dealerCardCount
-				BL calcTotal // X0 = calcTotal(X0, X1) 
-
-				// if total >= dealer max, then compare hands
-				CMP X0, #17 
-				BGE compare
-
-				LDR X0, =deck
-				LDR X1, =deckIndex
-				BL drawCard // W0 = drawCard(X0, X1)
-
-				STRB W0, [X22, X24] // dealerHand[dealerCardCount] = W0 
-				ADD W24, W24, #1
-				STRB W24, [X23] // dealerCardCount++
-
-				B dealerLoop
-
+			// Dealer's turn
+			BL dealer_play
 
 		compare:
 			MOV X0, X22 // X0 = address of dealerHand
@@ -373,6 +384,7 @@ _start:
 
 			MOV X11, X0 // X11 = dealer total
 
+			// Print dealer's hand
 			PRINT_STR dealerShows, dealer_shows_len
 			MOV X0, X22
 			MOV X1, X24 
@@ -385,6 +397,7 @@ _start:
 
 			MOV X10, X0 // X10 = player total
 
+			// Print player's hand
 			PRINT_STR yourHand, your_hand_len
 			MOV X0, X20
 			MOV X1, X24 
@@ -394,6 +407,7 @@ _start:
 			CMP X11, BLACKJACK 			
 			BGT playerWin
 
+			// else compare player and dealer hands
 			CMP X10, X11
 			BGT playerWin
 			BLT dealerWin
