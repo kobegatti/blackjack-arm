@@ -210,6 +210,65 @@ init_dealer_hand:
 	LDP FP, LR, [SP], #16
 	RET
 
+// Input: None
+// Output: X0=player's total 
+player_play:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	player_play_loop:
+		PRINT_STR hitOrStand, hit_or_stand_len
+		GET_STR buffer, buffer_len // get user input
+
+		CMP X0, #2 // make sure input is only 1 char
+		BGT player_play_loop
+
+		LDR X0, =buffer // X0 = address of buffer
+		LDRB W0, [X0] // W0 = value at X0
+
+		CMP W0, #'s'
+		BEQ player_play_exit // if 's', then exit 
+		CMP W0, #'h'
+		BNE player_play_loop // if not 'h', try again... 
+
+		LDRB W24, [X21] // W24 = value of playerCardCount
+
+		LDR X0, =deck
+		LDR X1, =deckIndex
+		BL drawCard // W0 = drawCard(X0, X1)
+
+		STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
+		ADD W24, W24, #1 // W24 += 1
+		STRB W24, [X21] // playerCardCount = W24
+
+		PRINT_STR dealerShows, dealer_shows_len
+		MOV X0, X22
+		MOV X1, #1 // only show dealer's first card
+		BL printHand 
+
+		PRINT_STR yourHand, your_hand_len
+		MOV X0, X20 // X0 = address of playerHand
+		MOV X1, X24  // X1 = playerCardCount
+		BL printHand
+		ENDL
+
+		MOV X0, X20 // X0 = address of playerHand 
+		MOV X1, X24 // X1 = playerCardCount
+		BL calcTotal // X0 = calcTotal(X0, X1)
+
+		CMP X0, BLACKJACK
+		BGE player_play_exit // if total >= 21, then exit...
+		
+		B player_play_loop
+
+	player_play_exit:
+		MOV X0, X20 // X0 = address of playerHand 
+		MOV X1, X24 // X1 = playerCardCount
+		BL calcTotal // X0 = calcTotal(X0, X1)
+
+		LDP FP, LR, [SP], #16
+		RET
+
 
 .global _start
 _start:
@@ -230,15 +289,13 @@ _start:
 
 			BL print_chips
 			BL get_bet
-
 			MOV X28, X0 // move bet result to X28
 			BL print_bet
 
-		initialDeal:	
+			// Init and shuffle deck
 			LDR X0, =deck	
 			BL initDeck 
 			BL shuffleDeck
-
 			LDR X0, =deckIndex
 			BL resetDeckIndex
 
@@ -255,81 +312,32 @@ _start:
 			BL init_player_hand
 			BL init_dealer_hand
 
+			// Print dealer's hand (hide 2nd card)
 			PRINT_STR dealerShows, dealer_shows_len
 			MOV X0, X22 // X0 = X22 = address of dealerHand
 			MOV X1, #1 // only show dealer's first card
 			BL printHand 
 
+			// Print player's entire hand
 			PRINT_STR yourHand, your_hand_len
 			MOV X0, X20 // X0 = X20 = address of playerHand
 			MOV X1, #2 // show player's starting hand
 			BL printHand
 			ENDL
 
-
+			// Check if player got blackjack initially
 			MOV X0, X20 // X0 = address of playerHand
 			LDRB W24, [X21]
 			MOV X1, X24 // X1 = playerCardCount
 			BL calcTotal // X0 = calcTotal(X0, X1)
-
 			CMP X0, BLACKJACK 
 			BEQ playerWin
 
-
-		playerPlay:
-			PRINT_STR hitOrStand, hit_or_stand_len
-			GET_STR buffer, buffer_len // get user input
-			CMP X0, #2 // make sure input is only 1 char
-			BGT playerPlay
-
-			LDR X0, =buffer // X0 = address of buffer
-			LDRB W0, [X0] // W0 = value at X0
-
-			CMP W0, #'s'
-			BEQ dealerPlay // if 's', then dealer's turn 
-			CMP W0, #'h'
-			BNE playerPlay// if not 'h', try again... 
-
-
-			LDRB W24, [X21] // W24 = value of playerCardCount
-
-			LDR X0, =deck
-			LDR X1, =deckIndex
-			BL drawCard // W0 = drawCard(X0, X1)
-
-			STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
-			ADD W24, W24, #1 // W24 += 1
-			STRB W24, [X21] // playerCardCount = W24
-
-			PRINT_STR dealerShows, dealer_shows_len
-			MOV X0, X22
-			MOV X1, #1 // only show dealer's first card
-			BL printHand 
-
-			PRINT_STR yourHand, your_hand_len
-			MOV X0, X20 // X0 = address of playerHand
-			MOV X1, X24  // X1 = playerCardCount
-			BL printHand
-			ENDL
-
-			MOV X0, X20 // X0 = address of playerHand 
-			MOV X1, X24 // X1 = playerCardCount
-			BL calcTotal // X0 = calcTotal(X0, X1)
-
+			// Player's turn
+			BL player_play
 			CMP X0, BLACKJACK
-			BLT playerPlay // if total < 21, then cont...
-			BEQ playerWin // if total == 21, then win...
-
-			// if total > 21, then bust...
-			PRINT_STR bust, bust_len
-			ENDL
-			ENDL
-
-			LDR X0, =chips // X0 = address of chips
-			MOV X1, X28 // X1 = bet
-			BL subChips
-			B deal
-
+			BEQ playerWin
+			BGT busted
 
 		dealerPlay:
 			ENDL
@@ -390,6 +398,16 @@ _start:
 			BGT playerWin
 			BLT dealerWin
 			BEQ push
+
+		busted:
+			PRINT_STR bust, bust_len
+			ENDL
+			ENDL
+
+			LDR X0, =chips // X0 = address of chips
+			MOV X1, X28 // X1 = bet
+			BL subChips
+			B deal
 
 		playerWin:
 			PRINT_STR playerWins, player_wins_len
