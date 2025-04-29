@@ -49,9 +49,9 @@
 	bet: .byte 1
 
 	playerHand: .fill 12, 1, 0 // 12 1-byte card-indices
-	playerCount: .byte 0
+	playerCardCount: .byte 0
 	dealerHand: .fill 12, 1, 0 // 12 1-byte card-indices
-	dealerCount: .byte 0
+	dealerCardCount: .byte 0
 	
 	deck: .fill 52, 1, 0 // 52 1-byte card-indices
 	deckIndex: .byte 0
@@ -69,6 +69,36 @@
 .extern calcTotal
 .extern getCardValue
 
+// Input: None
+// Output: X0='d'|'e' 
+get_deal_or_exit:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	deal_or_exit_loop:
+		LDR X3, =dealOrExit_len
+		PRINT_STR dealOrExit, X3 // print deal or exit prompt
+		GET_STR buffer, buffer_len // get user input 
+
+		CMP X0, #2 // make sure input is only 1 char
+		BGT deal_or_exit_loop
+
+		LDR X0, =buffer // X0 = address of buffer
+		LDRB W0, [X0] // W0 = value at X0
+		MOV X7, X0 // save char val in X7
+
+		CMP W0, #'e'
+		BEQ deal_or_exit_exit // if 'e', then return... 
+		CMP W0, #'d'
+		BEQ deal_or_exit_exit // if d', then return... 
+
+		B deal_or_exit_loop // else, try again...
+
+	deal_or_exit_exit:
+		ENDL
+		MOV X0, X7 // restore char val in X0
+		LDP FP, LR, [SP], #16
+		RET
 
 // Input: None
 // Output: None
@@ -79,9 +109,9 @@ print_chips:
 	LDR X3, =chips_str_len
 	PRINT_STR chips_str, X3
 
-	LDR X10, =chips // X10 = address of chips variable
-	LDR X10, [X10] // X10 = value of chips variable 
-	INT_TO_STR X10, buffer, buffer_len // buffer = str(X10)
+	LDR X5, =chips // X10 = address of chips variable
+	LDR X5, [X5] // X10 = value of chips variable 
+	INT_TO_STR X5, buffer, buffer_len // buffer = str(X10)
 	MOV X3, X0 // X0 = num bytes returned
 	PRINT_FROM_REG X1, X3 // X1 = address at start of str, X3 = num bytes
 
@@ -126,6 +156,60 @@ print_bet:
 	LDP FP, LR, [SP], #16
 	RET
 
+// Input: X20=addr of playerHand array, X21=addr of playerCardCount byte
+// Output: None
+init_player_hand:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	LDRB W24, [X21] // W24 = value of playerCardCount
+
+	LDR X0, =deck
+	LDR X1, =deckIndex
+	BL drawCard // W0 = drawCard(X0, X1)
+
+	STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
+	ADD W24, W24, #1 // W24 += 1
+
+	LDR X0, =deck
+	LDR X1, =deckIndex
+	BL drawCard // W0 = drawCard(X0, X1)
+
+	STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
+	ADD W24, W24, #1 // W24 += 1
+
+	STRB W24, [X21] // playerCardCount = W24
+
+	LDP FP, LR, [SP], #16
+	RET
+
+// Input: X22=addr of dealerHand array, X23=addr of dealerCardCount byte
+// Output: None
+init_dealer_hand:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	LDRB W24, [X23] // W24 = dealerCardCount
+
+	LDR X0, =deck
+	LDR X1, =deckIndex
+	BL drawCard // W0 = drawCard(X0, X1)
+
+	STRB W0, [X22, X24] // dealerHand[dealerCardCount] = W0 
+	ADD X24, X24, #1 // W24 += 1
+
+	LDR X0, =deck
+	LDR X1, =deckIndex
+	BL drawCard // W0 = drawCard(X0, X1)
+
+	STRB W0, [X22, X24] // dealerHand[dealerCardCount] = W0 
+	ADD X24, X24, #1 // W24 += 1
+
+	STRB W24, [X23] // dealerCardCount = W24
+
+	LDP FP, LR, [SP], #16
+	RET
+
 
 .global _start
 _start:
@@ -140,21 +224,9 @@ _start:
 			CMP X0, #0
 			BLE noMoney 
 
-			LDR X3, =dealOrExit_len
-			PRINT_STR dealOrExit, X3 // print deal or exit prompt
-			GET_STR buffer, buffer_len // get user input 
-
-			CMP X0, #2 // make sure input is only 1 char
-			BGT deal
-
-			LDR X0, =buffer // X0 = address of buffer
-			LDRB W0, [X0] // W0 = value at X0
-
+			BL get_deal_or_exit
 			CMP W0, #'e'
 			BEQ exit // if 'e', then exit
-			CMP W0, #'d'
-			BNE deal // if not 'd', try again... 
-			ENDL
 
 			BL print_chips
 			BL get_bet
@@ -170,63 +242,26 @@ _start:
 			LDR X0, =deckIndex
 			BL resetDeckIndex
 
-			// init callee-saved registers
 			MOV X2, #0
-
+			// init callee-saved registers
 			LDR X20, =playerHand // X20 = address of playerHand
-			LDR X21, =playerCount // X21 = address of playerCardCount
+			LDR X21, =playerCardCount // X21 = address of playerCardCount
 			STRB W2, [X21] // playerCardCount = 0
 
 			LDR X22, =dealerHand // X22 = address of dealerHand
-			LDR X23, =dealerCount // X23 = address of dealerCardCount
+			LDR X23, =dealerCardCount // X23 = address of dealerCardCount
 			STRB W2, [X23] // dealerCardCount = 0
 
-			// init playerHand and playerCardCount
-			LDRB W24, [X21] // W24 = value of playerCardCount
-
-			LDR X0, =deck
-			LDR X1, =deckIndex
-			BL drawCard // W0 = drawCard(X0, X1)
-
-			STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
-			ADD W24, W24, #1 // W24 += 1
-
-			LDR X0, =deck
-			LDR X1, =deckIndex
-			BL drawCard // W0 = drawCard(X0, X1)
-
-			STRB W0, [X20, X24] // playerHand[playerCardCount] = W0 
-			ADD W24, W24, #1 // W24 += 1
-
-			STRB W24, [X21] // playerCardCount = W24
-
-			// init dealerHand and dealerCardCount
-			LDRB W24, [X23] // W24 = dealerCardCount
-
-			LDR X0, =deck
-			LDR X1, =deckIndex
-			BL drawCard // W0 = drawCard(X0, X1)
-
-			STRB W0, [X22, X24] // dealerHand[dealerCount] = W0 
-			ADD X24, X24, #1 // W24 += 1
-
-			LDR X0, =deck
-			LDR X1, =deckIndex
-			BL drawCard // W0 = drawCard(X0, X1)
-
-			STRB W0, [X22, X24] // dealerHand[dealerCardCount] = W0 
-			ADD X24, X24, #1 // W24 += 1
-
-			STRB W24, [X23] // dealerCardCount = W24
-
+			BL init_player_hand
+			BL init_dealer_hand
 
 			PRINT_STR dealerShows, dealer_shows_len
-			MOV X0, X22 // X0 = address of dealerHand
+			MOV X0, X22 // X0 = X22 = address of dealerHand
 			MOV X1, #1 // only show dealer's first card
 			BL printHand 
 
 			PRINT_STR yourHand, your_hand_len
-			MOV X0, X20 // X0 = address of playerHand
+			MOV X0, X20 // X0 = X20 = address of playerHand
 			MOV X1, #2 // show player's starting hand
 			BL printHand
 			ENDL
@@ -256,7 +291,7 @@ _start:
 			BNE playerPlay// if not 'h', try again... 
 
 
-			LDRB W24, [X21] // W24 = value of playerCount
+			LDRB W24, [X21] // W24 = value of playerCardCount
 
 			LDR X0, =deck
 			LDR X1, =deckIndex
