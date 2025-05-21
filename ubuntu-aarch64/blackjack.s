@@ -34,20 +34,21 @@
 	SVC #0
 .ENDM
 
-.global initDeck
-.global shuffleDeck
-.global resetDeckIndex
-.global getRandomNumber
-.global drawCard
-.global printHand
-.global calcTotal
-.global getCardValue
-.global subChips
-.global addChips
+.global init_deck
+.global shuffle_deck
+.global reset_deck_index
+.global get_random_number
+.global draw_card
+.global print_hand
+.global calc_total
+.global get_card_value
+.global get_card_rank
+.global sub_chips
+.global add_chips
 
 // Input: X0=address of 52-byte array
 // Output: X0=same address with values initialized from 0 to 51
-initDeck:
+init_deck:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
@@ -65,7 +66,7 @@ initDeck:
 // Input: X0=address of 52-byte array where each value
 // 			   is between 0 and 51 
 // Output: X0=same address with elements shuffled
-shuffleDeck:
+shuffle_deck:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 	SUB SP, SP, #16 // BL expects 16-byte stack alignment
@@ -75,7 +76,7 @@ shuffleDeck:
 	MOV X20, #0 // loop counter (i)
 	shuffle_deck_loop:
 		LDR X0, =DECK_SIZE - 1 // X0 = randNum from 0 to 51
-		BL getRandomNumber // X0 = getRandomNumber(X0)
+		BL get_random_number // X0 = get_random_number(X0)
 
 		LDRB W2, [X19, X0] // X2 = array[randNum]
 		LDRB W3, [X19, X20] // X3 = array[i]
@@ -93,7 +94,7 @@ shuffleDeck:
 
 // Input X0=address of deckIndex
 // Output X0=address of deckIndex
-resetDeckIndex:
+reset_deck_index:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
@@ -106,7 +107,7 @@ resetDeckIndex:
 
 // Input: X0=upper limit
 // Output: X0=random number from 0 to upper limit inclusive
-getRandomNumber:
+get_random_number:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
@@ -132,7 +133,7 @@ getRandomNumber:
 
 // Input: X0=address of deck, X1=address of deckIndex
 // Output: X0=card index value at top of deck
-drawCard:
+draw_card:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
@@ -147,7 +148,7 @@ drawCard:
 
 // Input: X0=address of deck, X1=num cards to print 
 // Output: Prints X1 cards from X0 array
-printHand:
+print_hand:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 	SUB SP, SP, #32
@@ -183,7 +184,7 @@ printHand:
 
 // Input: X0=address of hand (12-byte array), X1=num cards to count
 // Output: X0=total of X1 cards from 12-byte array 
-calcTotal:
+calc_total:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 	SUB SP, SP, #32
@@ -202,10 +203,10 @@ calcTotal:
 	calc_total_loop:
 		LDRB W3, [X28, X27] // W3 = hand[i]
 		LDRB W4, [X2, X3] // W4 = values[hand[i]]
-		MOV W0, W4
-		BL getCardValue
+		MOV W0, W3
+		BL get_card_value // X0 = get_card_value(hand[i])
 		
-		ADD X25, X25, X0 // total += getCardValue X0 
+		ADD X25, X25, X0 // total += get_card_value X0 
 		CMP W4, #'A'
 		BNE increment_calc_total_loop // if ace, increment ace count
 		
@@ -237,24 +238,31 @@ calcTotal:
 	LDP FP, LR, [SP], #16
 	RET
 
-// Input: X0=(char)card_value
+// Input: X0=(char)card index
 // Output: X0=(int)card_value
-getCardValue:
+get_card_value:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
+	SUB SP, SP, #16
 
-	CMP W0, #'A'
+	STR X10, [FP, #-8]
+	STR X11, [FP, #-16]
+
+	LDR X11, =VALUES
+	LDRB W10, [X11, X0]
+
+	CMP W10, #'A'
 	BEQ is_ace
-	CMP W0, #'T'
+	CMP W10, #'T'
 	BEQ is_face
-	CMP W0, #'J'
+	CMP W10, #'J'
 	BEQ is_face
-	CMP W0, #'Q'
+	CMP W10, #'Q'
 	BEQ is_face
-	CMP W0, #'K'
+	CMP W10, #'K'
 	BEQ is_face
 
-	SUB W0, W0, #'0'
+	SUB W0, W10, #'0'
 	B card_value_epilogue 
 
 	is_ace:
@@ -264,12 +272,28 @@ getCardValue:
 		MOV W0, #10
 
 	card_value_epilogue:
+		LDR X11, [FP, #-16]
+		LDR X10, [FP, #-8]
+
+		ADD SP, SP, #16
 		LDP FP, LR, [SP], #16
 		RET
 
+// Input: X0=(char)card_value
+// Output: X0=(int)card_value
+get_card_rank:
+	STP FP, LR, [SP, #-16]!
+	MOV FP, SP
+
+	LDR X1, =VALUES
+	LDRB W0, [X1, X0]
+
+	LDP FP, LR, [SP], #16
+	RET
+
 // Input: X0=address of "chips" variable, X1=val to subtract from X0
 // Output: X0=same address with updated val, X1=same val to subtract
-subChips:
+sub_chips:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
@@ -282,7 +306,7 @@ subChips:
 
 // Input: X0=address of "chips" variable, X1=val to add to X0
 // Output: X0=same address with updated val, X1=same val to add 
-addChips:
+add_chips:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
