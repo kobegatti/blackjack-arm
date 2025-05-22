@@ -28,9 +28,6 @@
 	splitPrompt: .asciz "Do you want to split? (y/n): "
 	split_prompt_len = .-splitPrompt
 
-	firstSplitHand: .asciz "First split hand: "
-	first_split_hand_len = .-firstSplitHand
-
 	secondSplitHand: .asciz "Second split hand: "
 	second_split_hand_len = .-secondSplitHand
 
@@ -83,11 +80,15 @@
 .extern get_card_value
 .extern get_card_rank
 
+
 // Input: None
 // Output: X0='d'|'e' 
 get_deal_or_exit:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
+	SUB SP, SP, #16
+
+	STR X19, [FP, #-8]
 
 	deal_or_exit_loop:
 		LDR X3, =dealOrExit_len
@@ -99,7 +100,7 @@ get_deal_or_exit:
 
 		LDR X0, =buffer // X0 = address of buffer
 		LDRB W0, [X0] // W0 = value at X0
-		MOV X7, X0 // save char val in X7
+		MOV X19, X0 // save char val in X19
 
 		CMP W0, #'e'
 		BEQ deal_or_exit_exit // if 'e', then return... 
@@ -110,7 +111,11 @@ get_deal_or_exit:
 
 	deal_or_exit_exit:
 		ENDL
-		MOV X0, X7 // restore char val in X0
+		MOV X0, X19 // restore char val from X19 to X0
+
+		LDR X19, [FP, #-8]
+		
+		ADD SP, SP, #16
 		LDP FP, LR, [SP], #16
 		RET
 
@@ -170,57 +175,42 @@ print_bet:
 	LDP FP, LR, [SP], #16
 	RET
 
-// Input: X20=addr of playerHand array, X21=addr of playerCardCount byte
-// Output: None
-init_player_hand:
+// Input: X0=addr of byte array filled with 0s (cards), X1=addr of card count byte(=0)
+// Output: cards array with first 2 elements populated; card count byte=2
+init_hand: 
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
+	SUB SP, SP, #32
 
-	LDRB W3, [X21] // W3 = value of playerCardCount
+	STR X20, [FP, #-8]
+	STR X21, [FP, #-16]
+	STR X22, [FP, #-24]
 
-	LDR X0, =deck
-	LDR X1, =deckIndex
-	BL draw_card // W0 = draw_card(X0, X1)
-
-	STRB W0, [X20, X3] // playerHand[playerCardCount] = W0 
-	ADD W3, W3, #1
-
-	LDR X0, =deck
-	LDR X1, =deckIndex
-	BL draw_card // W0 = draw_card(X0, X1)
-
-	STRB W0, [X20, X3] // playerHand[playerCardCount] = W0 
-	ADD W3, W3, #1
-
-	STRB W3, [X21] // playerCardCount = W3
-
-	LDP FP, LR, [SP], #16
-	RET
-
-// Input: X24=addr of dealerHand array, X25=addr of dealerCardCount byte
-// Output: None
-init_dealer_hand:
-	STP FP, LR, [SP, #-16]!
-	MOV FP, SP
-
-	LDRB W3, [X25] // W3 = dealerCardCount
+	MOV X20, X0 // X20 = addr of cards array
+	MOV X21, X1 // X21 = addr of card count byte 
+	LDRB W22, [X1] // W22 = val of card count byte
 
 	LDR X0, =deck
 	LDR X1, =deckIndex
 	BL draw_card // W0 = draw_card(X0, X1)
 
-	STRB W0, [X24, X3] // dealerHand[dealerCardCount] = W0 
-	ADD X3, X3, #1
+	STRB W0, [X20, X22] // cards[cardCount] = W0
+	ADD W22, W22, #1 // cardCount++
 
 	LDR X0, =deck
 	LDR X1, =deckIndex
 	BL draw_card // W0 = draw_card(X0, X1)
 
-	STRB W0, [X24, X3] // dealerHand[dealerCardCount] = W0 
-	ADD X3, X3, #1
+	STRB W0, [X20, X22] // cards[cardCount] = W0
+	ADD W22, W22, #1 // cardCount++
 
-	STRB W3, [X25] // dealerCardCount = W3
+	STRB W22, [X21] // cardCount = W22
 
+	LDR X22, [FP, #-24]
+	LDR X21, [FP, #-16]
+	LDR X20, [FP, #-8]
+
+	ADD SP, SP, #32
 	LDP FP, LR, [SP], #16
 	RET
 
@@ -237,6 +227,7 @@ player_play:
 
 	MOV X20, X0
 	MOV X21, X1
+	LDRB W19, [X21] // W19 = value of playerCardCount
 	player_play_loop:
 		PRINT_STR hitOrStand, hit_or_stand_len
 		GET_STR buffer, buffer_len // get user input
@@ -252,15 +243,12 @@ player_play:
 		CMP W0, #'h'
 		BNE player_play_loop // if not 'h', try again... 
 
-		LDRB W19, [X21] // W19 = value of playerCardCount
-
 		LDR X0, =deck
 		LDR X1, =deckIndex
 		BL draw_card // W0 = draw_card(X0, X1)
 
 		STRB W0, [X20, X19] // playerHand[playerCardCount] = W0 
 		ADD W19, W19, #1
-		STRB W19, [X21] // playerCardCount = W6 + 1
 
 		PRINT_STR dealerShows, dealer_shows_len
 		MOV X0, X24
@@ -283,6 +271,8 @@ player_play:
 		B player_play_loop
 
 	player_play_exit:
+		STRB W19, [X21] // playerCardCount = W19
+
 		MOV X0, X20 // X0 = address of playerHand 
 		LDRB W1, [X21] // W1 = value of playerCardCount
 		BL calc_total // X0 = calc_total(X0, X1)
@@ -443,8 +433,14 @@ _start:
 			loadNumHands:
 				LDR X18, =numHands
 
-			BL init_player_hand
-			BL init_dealer_hand
+			initHands:
+				MOV X0, X20 // X0 = addr of playerHand
+				MOV X1, X21 // X1 = addr of playerCardCount
+				BL init_hand
+
+				MOV X0, X24 // X0 = addr of dealerHand
+				MOV X1, X25 // X1 = addr of dealerCardCount
+				BL init_hand
 
 			printDealerHand: // hide 2nd card
 				PRINT_STR dealerShows, dealer_shows_len
@@ -456,7 +452,6 @@ _start:
 				PRINT_STR yourHand, your_hand_len
 				MOV X0, X20 // X0 = X20 = address of playerHand
 				LDRB W1, [X21]
-				//MOV X1, #2 // show player's starting hand
 				BL print_hand
 				ENDL
 
@@ -524,9 +519,10 @@ _start:
 				
 			// Player's turn
 			players_turn:
-				MOV X0, X20
-				MOV X1, X21
-				BL player_play
+				play1stHand:
+					MOV X0, X20
+					MOV X1, X21
+					BL player_play
 
 				LDRB W19, [X18] // W19 = numHands
 				CMP W19, #2 // check if player split (numHands = 2)
@@ -543,10 +539,11 @@ _start:
 					MOV X1, #1
 					BL print_hand
 					ENDL
-	
-				MOV X0, X22
-				MOV X1, X23
-				BL player_play
+
+				play2ndHand:
+					MOV X0, X22
+					MOV X1, X23
+					BL player_play
 
 			// Dealer's turn
 			dealers_turn:
