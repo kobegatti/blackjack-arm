@@ -18,6 +18,7 @@ extern uint8_t draw_card(uint8_t* deck, uint8_t* deckIndex);
 extern void print_hand(uint8_t* deck, uint8_t numCards);
 extern uint8_t calc_total(uint8_t* deck, uint8_t numCards);
 extern uint8_t get_card_value(char str);
+extern uint8_t get_card_rank(char i);
 extern long long* sub_chips(long long* chips, int val);
 extern long long* add_chips(long long* chips, int val);
 
@@ -121,6 +122,16 @@ void testGetCardValue(char c, int expected)
 	assert(ret);
 }
 
+void testGetCardRank(char c, int expected)
+{
+	uint8_t ret = 1;
+	uint8_t actual = get_card_rank(c);
+
+	if (actual != expected) { ret = 0; }
+
+	assert(ret);
+}
+
 void testSubChips(long long* chips, int val, long long expected)
 {
 	uint8_t ret = 1;
@@ -181,6 +192,13 @@ int main()
 	testGetCardValue(38, 10); // KC
 	testGetCardValue(49, 10); // JS
 	testGetCardValue(4, 5); // 5H
+	
+	testGetCardRank(0, 65); // VALUES[0] = 'A'
+	testGetCardRank(4, 53); // VALUES[4] = '5'
+	testGetCardRank(14, 50); // VALUES[14] = '2'
+	testGetCardRank(24, 81); // VALUES[24] = 'Q'
+	testGetCardRank(38, 75); // VALUES[38] = 'K'
+	testGetCardRank(49, 74); // VALUES[49] = 'J'
 
 	testSubChips(&chips, 500, 2000);
 	testSubChips(&chips, 1, 1999);

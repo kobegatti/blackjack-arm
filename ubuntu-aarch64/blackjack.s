@@ -279,8 +279,8 @@ get_card_value:
 		LDP FP, LR, [SP], #16
 		RET
 
-// Input: X0=(char)card_value
-// Output: X0=(int)card_value
+// Input: X0=(int)card_value_index
+// Output: X0=(int)card_value in VALUES array at card_value_index
 get_card_rank:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
