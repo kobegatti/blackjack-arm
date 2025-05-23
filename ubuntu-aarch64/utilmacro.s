@@ -60,12 +60,12 @@
 	2:
 .ENDM
 
-// Input: reg=int, buffer=dest, buffer_len=num bytes
+// Input: reg=register containing int, buffer=dest, buffer_len=num bytes
 // Output: X0=num bytes written, X1=starting address of string
 .MACRO INT_TO_STR reg, buffer, buffer_len
-	MOV X0, #1 // number of bytes in return value (1 for '\n')
 	MOV X1, \reg
 	LDR X2, =\buffer
+	MOV X0, #1 // number of bytes in return value (1 for '\n')
 
 	// Move pointer to end - 1 (considering null char)
 	ADD X2, X2, \buffer_len - 1 
