@@ -149,35 +149,59 @@ get_bet:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
 
-	get_bet_loop:
+	getBetLoop:
 		LDR X3, =placeBet_len
 		PRINT_STR placeBet, X3 // print place bet prompt
 
 		GET_STR buffer, buffer_len // user input into buffer 
-		STR_TO_INT buffer // int result in X0
+		CMP X0, buffer_len - 1
+		BGE handleOverflow 
+
+		STR_TO_INT buffer // X0=int result, X1=num digits 
 
 		CMP W0, BET_MIN 
-		BLE get_bet_loop // retry if bet <= 0
+		BLE getBetLoop // retry if bet <= 0
 		CMP W0, BET_MAX
-		BGT get_bet_loop // retry if bet > 500
+		BGT getBetLoop // retry if bet > 500
 
-	LDP FP, LR, [SP], #16
-	RET
+		B getBetExit
 
-// Input: X0=bet
+	handleOverflow:
+		SET_NON_BLOCK
+		CLEAR_STDIN
+		SET_BLOCK
+		B getBetLoop
+	
+	getBetExit:
+		LDP FP, LR, [SP], #16
+		RET
+
+// Input: X0=bet,X1=num digits in bet
 // Output: None
 print_bet:
 	STP FP, LR, [SP, #-16]!
 	MOV FP, SP
+	SUB SP, SP, #16
+
+	STR X27, [FP, #-8]
+	STR X19, [FP, #-16]
+
+	MOV X27, X0 // X27 = bet
+	MOV X19, X1 // X19 = num digits
 
 	LDR X3, =betPlaced_len
 	PRINT_STR betPlaced, X3 // print bet placed text 	
 
-	INT_TO_STR X0, buffer, buffer_len // bet int to str
+	//INT_TO_STR X27, buffer, buffer_len // bet int to str
+	INT_TO_STR X27, buffer, X19 // bet int to str
 	MOV X3, X0 // num bytes returned in X0
 	PRINT_STR buffer, X3  // print bet placed
 	ENDL
 
+	LDR X19, [FP, #-16]
+	LDR X27, [FP, #-8]
+
+	ADD SP, SP, #16
 	LDP FP, LR, [SP], #16
 	RET
 
