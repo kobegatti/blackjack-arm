@@ -1,4 +1,4 @@
-# aarch64 blackjack game (no double down or split)
+# aarch64 blackjack game
 
 make - builds blackjack and test exes 
 
