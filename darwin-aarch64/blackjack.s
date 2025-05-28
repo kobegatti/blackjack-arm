@@ -41,20 +41,21 @@
 
 .extern _getentropy
 
-.global _initDeck
-.global _shuffleDeck
-.global _resetDeckIndex
-.global _getRandomNumber
-.global _drawCard
-.global _printHand
-.global _calcTotal
-.global _getCardValue
-.global _subChips
-.global _addChips
+.global _init_deck
+.global _shuffle_deck
+.global _reset_deck_index
+.global _get_random_number
+.global _draw_card
+.global _print_hand
+.global _calc_total
+.global _get_card_value
+.global _get_card_rank
+.global _sub_chips
+.global _add_chips
 
 // Input: x0=address of 52-byte array
 // Output: x0=same address with values initialized from 0 to 51
-_initDeck:
+_init_deck:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 
@@ -72,10 +73,11 @@ _initDeck:
 // Input: x0=address of 52-byte array where each value
 // 			   is between 0 and 51 
 // Output: x0=same address with elements shuffled
-_shuffleDeck:
+_shuffle_deck:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 	sub sp, sp, #16 // bl expects 16-byte stack alignment
+
 	str x0, [fp, #-8] // Store array address onto stack
 
 	mov x19, x0 // x19 = array address
@@ -83,7 +85,7 @@ _shuffleDeck:
 	shuffle_deck_loop:
 		mov x0, DECK_SIZE
 		sub x0, x0, #1 // x0 = randNum from 0 to 51
-		bl _getRandomNumber // x0 = getRandomNumber(x0)
+		bl _get_random_number // x0 = get_random_number(x0)
 
 		ldrb W2, [x19, x0] // x2 = array[randNum]
 		ldrb W3, [x19, x20] // X3 = array[i]
@@ -95,13 +97,14 @@ _shuffleDeck:
 		blt shuffle_deck_loop // if i < 52, then loop... else exit
 
 	ldr x0, [fp, #-8]
+
 	add sp, sp, #16
 	ldp fp, lr, [sp], #16
 	ret
 
 // Input x0=address of deckIndex
 // Output x0=address of deckIndex
-_resetDeckIndex:
+_reset_deck_index:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 
@@ -114,7 +117,7 @@ _resetDeckIndex:
 
 // Input: x0=upper limit
 // Output: x0=random number from 0 to upper limit inclusive
-_getRandomNumber:
+_get_random_number:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 
@@ -140,7 +143,7 @@ _getRandomNumber:
 
 // Input: x0=address of deck, x1=address of deckIndex
 // Output: x0=card index value at top of deck
-_drawCard:
+_draw_card:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 
@@ -155,7 +158,7 @@ _drawCard:
 
 // Input: x0=address of deck, x1=num cards to print 
 // Output: Prints x1 cards from x0 array
-_printHand:
+_print_hand:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 	sub sp, sp, #32
@@ -177,6 +180,7 @@ _printHand:
 		add x20, x20, #1
 		cmp x20, x22
 		blt print_hand_loop
+
 	UNDERSCORE
 	ENDL
 
@@ -191,7 +195,7 @@ _printHand:
 
 // Input: x0=address of hand (12-byte array), x1=num cards to count
 // Output: x0=total of x1 cards from 12-byte array 
-_calcTotal:
+_calc_total:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 	sub sp, sp, #32
@@ -205,17 +209,18 @@ _calcTotal:
 	mov x26, #0 // aces
 	mov x27, #0 // loop counter
 	mov x28, x0 // x28=address of hand
+
 	adrp x2, VALUES@PAGE
 	add x2, x2, VALUES@PAGEOFF
 	mov x10, x1
 	calc_total_loop:
 		ldrb w3, [x28, x27] // W3 = hand[i]
 		ldrb w4, [x2, X3] // W4 = values[hand[i]]
-		mov w0, W4
-		bl _getCardValue
+		mov w0, w3
+		bl _get_card_value
 		
-		add x25, x25, x0 // total += getCardValue x0 
-		cmp W4, #'A'
+		add x25, x25, x0 // total += _get_card_value x0 
+		cmp w4, #'A'
 		bne increment_calc_total_loop // if ace, increment ace count
 		
 		add x26, x26, #1 // aces += 1
@@ -237,6 +242,7 @@ _calcTotal:
 
 	calc_total_epilogue:
 		mov x0, x25 // x0 = total
+
 		ldr x28, [fp, #-32]
 		ldr x27, [fp, #-24]
 		ldr x26, [fp, #-16]
@@ -248,22 +254,30 @@ _calcTotal:
 
 // Input: x0=(char)card_value
 // Output: x0=(int)card_value
-_getCardValue:
+_get_card_value:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
+	sub sp, sp, #16
 
-	cmp w0, #'A'
+	str x10, [fp, #-8]
+	str x11, [fp, #-16]
+
+	adrp x11, VALUES@PAGE
+	add x11, x11, VALUES@PAGEOFF
+	ldrb w10, [x11, x0]
+
+	cmp w10, #'A'
 	beq is_ace
-	cmp w0, #'T'
+	cmp w10, #'T'
 	beq is_face
-	cmp w0, #'J'
+	cmp w10, #'J'
 	beq is_face
-	cmp w0, #'Q'
+	cmp w10, #'Q'
 	beq is_face
-	cmp w0, #'K'
+	cmp w10, #'K'
 	beq is_face
 
-	sub w0, w0, #'0'
+	sub w0, w10, #'0'
 	b card_value_epilogue 
 
 	is_ace:
@@ -273,12 +287,29 @@ _getCardValue:
 		mov w0, #10
 
 	card_value_epilogue:
+		ldr x11, [fp, #-16]
+		ldr x10, [fp, #-8]
+
+		add sp, sp, #16
 		ldp fp, lr, [sp], #16
 		ret
 
+// Input: X0=(int)card_value_index
+// Output: X0=(int)card_value in VALUES array at card_value_index
+_get_card_rank:
+	stp fp, lr, [sp, #-16]!
+	mov fp, sp
+
+	adrp x1, VALUES@PAGE
+	add x1, x1, VALUES@PAGEOFF
+	ldrb w0, [x1, x0]
+
+	ldp fp, lr, [sp], #16
+	ret
+
 // Input: x0=address of "chips" variable, x1=val to subtract from x0
 // Output: x0=same address with updated val, x1=same val to subtract
-_subChips:
+_sub_chips:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 
@@ -291,7 +322,7 @@ _subChips:
 
 // Input: x0=address of "chips" variable, x1=val to add to x0
 // Output: x0=same address with updated val, x1=same val to add 
-_addChips:
+_add_chips:
 	stp fp, lr, [sp, #-16]!
 	mov fp, sp
 

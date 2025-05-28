@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -6,141 +7,149 @@
 
 // globals to this file
 //static const uint8_t* VALUES = "A23456789TJQKA23456789TJQKA23456789TJQKA23456789TJQK";
-//static const uint8_t* SUITS = "HHHHHHHHHHHHHDDDDDDDDDDDDDCCCCCCCCCCCCCSSSSSSSSSSSSS";
+//static const uint8_t* SUITS =  "HHHHHHHHHHHHHDDDDDDDDDDDDDCCCCCCCCCCCCCSSSSSSSSSSSSS";
 
 // blackjack.s functions
-extern uint8_t* initDeck(uint8_t* deck);
-extern uint8_t* shuffleDeck(uint8_t* deck);
-extern uint8_t* resetDeckIndex(uint8_t* deckIndex);
-extern uint8_t getRandomNumber(uint8_t upperLimit);
-extern uint8_t drawCard(uint8_t* deck, uint8_t* deckIndex);
-extern void printHand(uint8_t* deck, uint8_t numCards);
-extern uint8_t calcTotal(uint8_t* deck, uint8_t numCards);
-extern uint8_t getCardValue(char str);
-extern long long* subChips(long long* chips, int val);
-extern long long* addChips(long long* chips, int val);
+extern uint8_t* init_deck(uint8_t* deck);
+extern uint8_t* shuffle_deck(uint8_t* deck);
+extern uint8_t* reset_deck_index(uint8_t* deckIndex);
+extern uint8_t get_random_number(uint8_t upperLimit);
+extern uint8_t draw_card(uint8_t* deck, uint8_t* deckIndex);
+extern void print_hand(uint8_t* deck, uint8_t numCards);
+extern uint8_t calc_total(uint8_t* deck, uint8_t numCards);
+extern uint8_t get_card_value(char str);
+extern uint8_t get_card_rank(char i);
+extern long long* sub_chips(long long* chips, int val);
+extern long long* add_chips(long long* chips, int val);
 
 // c test functions
 void testInitDeck(uint8_t* deck)
 {
 	uint8_t ret = 1;
 
-	deck = initDeck(deck);
+	deck = init_deck(deck);
 
 	for (int i = 0; i < DECK_SIZE; i++)
 	{
 		if (deck[i] != i) { ret = 0; }
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testShuffleDeck(uint8_t* deck)
 {
 	uint8_t ret = 1;
 
-	deck = shuffleDeck(deck);
+	deck = shuffle_deck(deck);
 
 	for (int i = 0; i < DECK_SIZE; i++)
 	{
 		if (deck[i] < 0 || deck[i] >= DECK_SIZE) { ret = 0; }
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testResetDeckIndex(uint8_t* deckIndex)
 {
 	uint8_t ret = 1;
 	
-	deckIndex = resetDeckIndex(deckIndex);
+	deckIndex = reset_deck_index(deckIndex);
 
 	ret = (*deckIndex == 0);
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testGetRandomNumber(uint8_t upperLimit)
 {
 	uint8_t ret = 1;
-	uint8_t randomNum = getRandomNumber(upperLimit);
+	uint8_t randomNum = get_random_number(upperLimit);
 
 	if (randomNum < 0 || randomNum > upperLimit)
 	{
 		ret = 0;
 	}
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testDrawCard(uint8_t* deck, uint8_t* deckIndex)
 {
 	uint8_t ret1 = 1;
 	uint8_t ret2 = 1;
-	uint8_t expected = drawCard(deck, deckIndex);
+	uint8_t expected = draw_card(deck, deckIndex);
 
 	if (expected != deck[*deckIndex - 1])
 	{
 		ret1 = 0;
 	}
 
-	expected = drawCard(deck, deckIndex);
+	expected = draw_card(deck, deckIndex);
 
 	if (expected != deck[*deckIndex - 1])
 	{
 		ret2 = 0;
 	}
 
-	printf("%s passed: %s\n", __func__, ret1 & ret2 ? "true" : "false");
+	assert(ret1);
+	assert(ret2);
 }
 
 void testPrintHand(uint8_t* deck, uint8_t numCards)
 {
-	uint8_t ret = 1;
-
-	printHand(deck, numCards);
-
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	print_hand(deck, numCards);
 }
 
 void testCalcTotal(uint8_t* hand, uint8_t count, uint8_t expected)
 {
 	uint8_t ret = 1;
-	uint8_t actualTotal = calcTotal(hand, count);
+	uint8_t actualTotal = calc_total(hand, count);
 
 	if (actualTotal != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testGetCardValue(char c, int expected)
 {
 	uint8_t ret = 1;
-	uint8_t actual = getCardValue(c);
+	uint8_t actual = get_card_value(c);
 
 	if (actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
+}
+
+void testGetCardRank(char c, int expected)
+{
+	uint8_t ret = 1;
+	uint8_t actual = get_card_rank(c);
+
+	if (actual != expected) { ret = 0; }
+
+	assert(ret);
 }
 
 void testSubChips(long long* chips, int val, long long expected)
 {
 	uint8_t ret = 1;
-	long long* actual = subChips(chips, val);
+	long long* actual = sub_chips(chips, val);
 
 	if (*actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 void testAddChips(long long* chips, int val, long long expected)
 {
 	uint8_t ret = 1;
-	long long* actual = addChips(chips, val);
+	long long* actual = add_chips(chips, val);
 
 	if (*actual != expected) { ret = 0; }
 
-	printf("%s passed: %s\n", __func__, ret ? "true" : "false");
+	assert(ret);
 }
 
 int main(void)
@@ -178,11 +187,18 @@ int main(void)
 	testCalcTotal(player2, player2Count, expectedPlayer2Total);
 	testCalcTotal(player3, player3Count, expectedPlayer3Total);
 
-	testGetCardValue('A', 11);
-	testGetCardValue('K', 10);
-	testGetCardValue('Q', 10);
-	testGetCardValue('J', 10);
-	testGetCardValue('5', 5);
+	testGetCardValue(0, 11); // AH
+	testGetCardValue(24, 10); // QD
+	testGetCardValue(38, 10); // KC
+	testGetCardValue(49, 10); // JS
+	testGetCardValue(4, 5); // 5H
+	
+	testGetCardRank(0, 65); // VALUES[0] = 'A'
+	testGetCardRank(4, 53); // VALUES[4] = '5'
+	testGetCardRank(14, 50); // VALUES[14] = '2'
+	testGetCardRank(24, 81); // VALUES[24] = 'Q'
+	testGetCardRank(38, 75); // VALUES[38] = 'K'
+	testGetCardRank(49, 74); // VALUES[49] = 'J'
 
 	testSubChips(&chips, 500, 2000);
 	testSubChips(&chips, 1, 1999);
