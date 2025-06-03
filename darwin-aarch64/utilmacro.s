@@ -71,6 +71,7 @@
 		add W0, W0, W2 // append current digit
 		add W4, W4, #1 // increment byte count
 		b 2b
+
 	3:
 		add W4, W4, #1 // for '\n'
 		mov W1, W4 // num bytes
@@ -107,6 +108,7 @@
 		mov x1, x5
 		add x0, x0, #1
 		b 1b
+
 	2:
 		add x2, x2, #1
 		mov x1, x2
@@ -141,14 +143,19 @@
 		svc #0	
 	
 		cmp x0, #1 // byte read?
-		blt 2f // if no byte read, exit
-
+		beq 2f
+		cmp x0, #0x23 // errno EAGAIN? (no available data for non-blocking I/O)
+		beq 3f // if errno == EAGAIN, then done
+		b 1b // else try again
+		
+	2:
 		adrp x1, miniBuf@PAGE
 		add x1, x1, miniBuf@PAGEOFF
-		ldrh w3, [x1]
+		ldrb w3, [x1]
 		cmp w3, #'\n'
 		bne 1b // if not '\n', read again
-	2:
+
+	3:
 .endmacro
 
 .macro SET_NON_BLOCK
@@ -167,6 +174,7 @@
 		mov x1, #4 // F_SETFL
 		mov x16, #92 // macOS fcntl syscall
 		SVC 0
+
 	2:
 .endmacro
 
@@ -187,5 +195,6 @@
 		// x2 = current flags & ~O_NONBLOCK
 		mov x16, #92 // macOS fcntl syscall
 		SVC 0
+
 	2:
 .endmacro
